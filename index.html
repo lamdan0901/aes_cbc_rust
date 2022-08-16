@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>hello-wasm example</title>
+</head>
+
+<body>
+  <script type="module">
+    import init, { aes_cbc } from "./pkg/hello_wasm.js";
+
+    var saveByteArray = (function () {
+      var a = document.createElement("a");
+      document.body.appendChild(a);
+      a.style = "display: none";
+      return function (data, name) {
+        var video = new Blob(data, { type: "video/ts" });
+        a.href = URL.createObjectURL(video);
+        a.download = name;
+        a.click();
+      };
+    })();
+
+    function _base64ToArrayBuffer(base64) {
+      var binary_string = window.atob(base64);
+      var len = binary_string.length;
+      var bytes = new Uint8Array(len);
+      for (var i = 0; i < len; i++) {
+        bytes[i] = binary_string.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    let key = _base64ToArrayBuffer("3Cpzd4djjXoi6WEzTqFJIw==");
+    key = new Uint8Array(key)
+    // let key = new Uint8Array([211, 115, 102, 172, 18, 69, 233, 10, 142, 209, 254, 16, 234, 16, 193, 83]);
+    // console.log('key: ', key);
+
+    let iv = new ArrayBuffer(16);
+    iv = new Uint8Array(iv)
+
+    let encryptedVidData, request = new XMLHttpRequest(),
+      method = "GET",
+      url = "http://localhost:8000/480-0.ts";
+
+    request.responseType = "arraybuffer";
+    request.open(method, url, true);
+    request.onload = () => {
+      encryptedVidData = new Uint8Array(request.response);
+
+      init()
+        .then(() => {
+          const decryptedVid = aes_cbc(encryptedVidData, iv, key)
+          saveByteArray([decryptedVid], "decryptedVid.ts");
+        })
+        .catch(function (err) {
+          console.error("error in request onload: ", err);
+        });
+    }
+    request.send();
+
+
+  </script>
+</body>
+
+</html>
